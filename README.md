@@ -1,69 +1,68 @@
 # Console RPG
 
-A turn-based console RPG written in C#. Explore the shop, gear up your hero, fight enemies that scale with in-game days, and save/load your progress between sessions.
+A turn-based console RPG built in C# (.NET) from scratch as a learning project, focused on clean architecture, SOLID principles, and idiomatic C#.
 
 ## Features
 
-- **Turn-based battles** — attack, use items, or attempt to flee from enemies that get tougher (and more rewarding) as days pass
-- **Equipment system** — four slots (Weapon, Armor, Helmet, Ring) with stat bonuses (damage, defense, max health)
-- **Inventory management** — use, equip/unequip, or discard items
-- **Shop** — buy and sell items, with stock that refreshes daily and scales with progression
-- **Weighted loot & enemy tables** — random rolls weighted by item/enemy rarity and unlocked over time
-- **Save/Load** — JSON-based save system with a startup menu (continue / new game / delete save)
+- **Turn-based combat** — attack, use items mid-battle, or attempt to flee
+- **Inventory system** — stackable items, equip/unequip, drop items
+- **Equipment** — weapons and armor modify the hero's total stats (damage, defense, max health)
+- **Shop** — buy and sell items for gold, with a sell-price coefficient
+- **Weighted loot system** — items and enemies are rolled using weighted randomness, with rarer entries becoming more common as in-game days pass
+- **Save/load system** — JSON serialization to disk, with a startup menu to continue an existing save, start a new game, or delete the save
+- **Post-battle rewards** — random gold and item drops, plus healing on victory as a new day begins
 
-## Project structure
+## Architecture
+
+The project follows a layered structure:
 
 ```
-Console_RPG/
-├── Controllers/       # Game flow and input handling (Battle, Hero, Inventory, Save, Shop, Game)
-├── Models/            # Domain models (Hero, Enemy, Character, Inventory, Shop, GameState, StatBlock)
-│   ├── Items/          # Item hierarchy (Equipment: Weapon/Armor/Helmet/Ring, Potion)
-│   ├── Interfaces/      # Contracts (IAttack, IEquipable, IUsable, ITrading, ICharacterInfo, ...)
-│   ├── RandomRoller/    # Weighted random tables for loot and enemies
-│   └── Save/            # Save DTOs and Hero <-> save-data conversion
-├── Factories/          # Whitelisted factories for creating items and enemies by name
-├── Views/              # Console output (CoreView)
-└── Program.cs           # Entry point
+Models/        Game entities: Hero, Enemy, Item, Weapon, Potion, Inventory, GameState
+Controllers/   Game flow and user input: GameController, BattleController,
+               ShopController, InventoryController, SaveController
+Views/         Console output formatting: CoreView
+Factories/     Centralized object creation: ItemFactory, EnemyFactory
+Data/          Static tables: LootTable, EnemyTable, WeightedEntry
 ```
+
+Key design choices:
+
+- **Interfaces over concrete types** — `IUsable`, `IEquipable`, `ICharacterInfo`, `IInventoryInfo` decouple game logic from specific implementations
+- **Dependency injection via constructors** — controllers receive only the dependencies they actually need (e.g. `GameState` is only passed to controllers that use it)
+- **Command–query separation** — stat calculations (`TotalStats`) are side-effect-free; state changes happen through explicit methods
+- **Factories over direct instantiation** — items and enemies are created by name through `ItemFactory` / `EnemyFactory`, keeping content data separate from game logic
+- **Generic weighted roller** — a single `WeightedRoller<T>` class drives both loot and enemy generation, parameterized by a factory delegate
+- **DTOs for persistence** — save data is converted to plain, cycle-free objects before serialization to avoid circular references and polymorphism issues
+
+## Tech Stack & Architecture
+
+Built with a focus on clean architecture, extensibility, and maintainable C# code.
+
+- **Language:** C#
+- **Platform:** .NET
+- **Serialization:** `System.Text.Json`, using plain DTOs (`SaveData`) to avoid circular references (`Hero` ↔ `Inventory`) and polymorphism issues (items are restored by name via `ItemFactory` rather than deserialized directly)
+- **Data querying:** LINQ for filtering, projecting, and aggregating collections (loot tables, inventory, equipment)
+
+### Applied Design Patterns & Principles
+
+- **Factory pattern** — `ItemFactory` / `EnemyFactory` centralize object creation by name, decoupling game logic from concrete constructors
+- **Strategy via generics** — `WeightedRoller<T>` drives both loot and enemy generation, parameterized by a factory delegate (`Func<string, T>`)
+- **Dependency injection via constructors** — controllers receive only the dependencies they use (e.g. `GameState` is passed only where the current day matters)
+- **Command–query separation** — stat calculations (`TotalStats`) are pure and side-effect-free; state changes go through explicit methods (`RefreshMaxHealth`, `TrySpendGold`)
+- **Interface segregation** — `IUsable`, `IEquipable`, `ICharacterInfo`, `IInventoryInfo` expose narrow contracts instead of full concrete classes
+- **DTO pattern** — save data is converted to simple, flat objects before serialization, separate from the live game model
 
 ## Getting started
 
-### Prerequisites
-
-- [.NET SDK](https://dotnet.microsoft.com/download) (6.0 or later)
-
-### Run
-
 ```bash
-dotnet run --project Console_RPG
+git clone <repo-url>
+cd Console_RPG
+dotnet run
 ```
 
-### Build
+## Possible future improvements
 
-```bash
-dotnet build
-```
-
-## How to play
-
-On launch, you'll land in the main menu:
-
-```
-1. Your Hero      — view stats and equipped gear
-2. Open Inventory — use, equip/unequip, or throw away items
-3. Battle         — fight a random enemy
-4. Shop           — buy and sell items
-8. Save game
-9. Delete save
-```
-
-Progress is saved to `save.json` in the working directory. On startup, if a save file is found, you'll be offered to continue, start a new game (overwriting the save), or delete the save.
-
-## Notes
-
-- Loot, shop stock, and enemy encounters are drawn from weighted tables that shift as `CurrentDay` advances, so later days bring stronger (and rarer) items and enemies.
-- Items and enemies are created through name-based factories (`ItemFactory`, `EnemyFactory`), which keeps save data restricted to a known, whitelisted set of content.
-
-## License
-
-Add your preferred license here (e.g. MIT).
+- Character leveling and experience
+- More equipment slots and item rarity tiers
+- Multiple enemy encounters per battle
+- Configurable loot tables loaded from external JSON
